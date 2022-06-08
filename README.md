@@ -24,7 +24,7 @@ ip link set en1 down
 ip link set en2 down
 ...
 
-# Run tests with default DNS config
+# Run tests with Google DNS config
 sudo ./dropcheck en0
 
 # Run tests with DNS config
