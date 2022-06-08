@@ -23,6 +23,7 @@ WIDE_DOMAIN='www.wide.ad.jp'
 
 GOOGLE_IPV4='https://ipv4.google.com/'
 GOOGLE_IPV6='https://ipv6.google.com/'
+EICAR='https://secure.eicar.org/eicar.com.txt'
 
 TRACEROUTE_INTERVAL=0.1
 TRACEROUTE_COUNT=100
@@ -80,7 +81,10 @@ get_ipv6_addr() {
 get_ipv6_gw_addr() {
   (($# != 1)) && return 1
   local interface="$1"
-  local gw_addr="$(ip -6 route | grep -m 1 "default.*$interface" | awk '{print $3}' | cut -d % -f 1)"
+  local gw_addr="$(ip -6 route | grep -m 1 "nexthop" | awk '{print $3}' | cut -d % -f 1 | grep -v -e '^$')"
+  if [ -z "$gw_addr" ]; then
+    gw_addr="$(ip -6 route | grep -m 1 "default.*$interface" | awk '{print $3}' | cut -d % -f 1)"
+  fi
   echo "$gw_addr" | grep -E "$IPV6_ADDR_RE" &> /dev/null || return 1
   echo "$gw_addr"
   return 0
@@ -208,6 +212,36 @@ test_ping_ipv6 () {
     echo "$result" | tail -n 1
   else
     echo "$result" | tail -n 2 | head -n 1
+  fi
+  return $test_status
+}
+
+# $1: domain
+# $2: Record
+# $3: DNS Server
+test_dns () {
+  (($# != 3 && $# != 2)) && return 1
+  local domain="$1"
+  local record="$2"
+  local dns_server="$3"
+  local result
+  local test_status
+
+  if (($# == 3)); then
+    result="$(dig +short "$domain" $record @$dns_server)"
+  else
+    result="$(dig +short "$domain" $record)"
+  fi
+  test_status=$?
+  if (($test_status == 0)); then
+    result="$(echo $result | grep -v -e '^$')"
+    test_status=$?
+  fi
+
+  if (($test_status != 0)); then
+    echo "dig $domain @$dns_server $record"
+  else
+    echo "$domain @$dns_server IN $record $result"
   fi
   return $test_status
 }
@@ -356,11 +390,27 @@ main () {
   #================================
   printb 'STEP 3. DNS and HTTP'
 
-  describe="$(test_dns_a "$WIDE_DOMAIN")"
+  describe="$(test_dns "$WIDE_DOMAIN" "A")"
   tag_test_status $?
   echo "$describe"
 
-  describe="$(test_dns_aaaa "$WIDE_DOMAIN")"
+  describe="$(test_dns "$WIDE_DOMAIN" "AAAA")"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_dns "$WIDE_DOMAIN" "A" $DNS_V4)"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_dns "$WIDE_DOMAIN" "AAAA" $DNS_V4)"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_dns "$WIDE_DOMAIN" "A" $DNS_V6)"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_dns "$WIDE_DOMAIN" "AAAA" $DNS_V6)"
   tag_test_status $?
   echo "$describe"
 
@@ -369,6 +419,10 @@ main () {
   echo "$describe"
 
   describe="$(test_http_get "$GOOGLE_IPV6")"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_http_get "$EICAR")"
   tag_test_status $?
   echo "$describe"
 
