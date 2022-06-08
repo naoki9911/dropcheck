@@ -81,7 +81,7 @@ get_ipv6_addr() {
 get_ipv6_gw_addr() {
   (($# != 1)) && return 1
   local interface="$1"
-  local gw_addr="$(ip -6 route | grep -m 1 "nexthop" | awk '{print $3}' | cut -d % -f 1 | grep -v -e '^$')"
+  local gw_addr="$(ip -6 route | grep -m 1 "nexthop" | awk '{print $3}' | cut -d % -f 1)"
   if [ -z "$gw_addr" ]; then
     gw_addr="$(ip -6 route | grep -m 1 "default.*$interface" | awk '{print $3}' | cut -d % -f 1)"
   fi
@@ -242,46 +242,6 @@ test_dns () {
     echo "dig $domain @$dns_server $record"
   else
     echo "$domain @$dns_server IN $record $result"
-  fi
-  return $test_status
-}
-
-test_dns_a () {
-  (($# != 1)) && return 1
-  local domain="$1"
-  local result
-  local test_status
-  result="$(dig +short "$domain" A @$DNS_V4)"
-  test_status=$?
-  if (($test_status == 0)); then
-    result="$(echo $result | grep -v -e '^$')"
-    test_status=$?
-  fi
-
-  if (($test_status != 0)); then
-    echo "dig $domain @$DNS_V4 A"
-  else
-    echo "$domain @$DNS_V4 IN A $result"
-  fi
-  return $test_status
-}
-
-test_dns_aaaa () {
-  (($# != 1)) && return 1
-  local domain="$1"
-  local result
-  local test_status
-  result="$(dig +short "$domain" AAAA @$DNS_V6)"
-  test_status=$?
-  if (($test_status == 0)); then
-    result="$(echo $result | grep -v -e '^$')"
-    test_status=$?
-  fi
-
-  if (($test_status != 0)); then
-    echo "dig $domain @$DNS_V6 AAAA"
-  else
-    echo "$domain @$DNS_V6 IN AAAA $result"
   fi
   return $test_status
 }
