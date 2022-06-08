@@ -9,14 +9,6 @@ For Interop Tokyo 2022
 - wget
 - mtr
 
-## :warning: Caveats :warning:
-Configure DNS addresses 
-
-```sh
-DNS_V4=$GOOGLE_PUBLIC_DNS_V4
-DNS_V6=$GOOGLE_PUBLIC_DNS_V6
-```
-
 ## Usage
 
 ```sh
@@ -32,6 +24,9 @@ ip link set en1 down
 ip link set en2 down
 ...
 
-# Run tests
+# Run tests with default DNS config
 sudo ./dropcheck en0
+
+# Run tests with DNS config
+sudo DNS_V4=1.1.1.1 DNS_V6=2606:4700:4700::1111 ./dropcheck en0
 ```
