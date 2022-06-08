@@ -160,8 +160,8 @@ test_ping_ipv4 () {
   local source_addr="$(get_ipv4_addr "$interface")"
   local result
   case $# in
-    2 ) result="$(ping -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
-    3 ) result="$(ping -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" -D "$host" 2> /dev/null)";;
+    2 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
+    3 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
     * ) return 1;;
   esac
   local test_status=$?
@@ -188,8 +188,8 @@ test_ping_ipv6 () {
   fi
   local result
   case $# in
-    2 ) result="$(ping6 -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
-    3 ) result="$(ping6 -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" -D "$host" 2> /dev/null)";;
+    2 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
+    3 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
     * ) return 1;;
   esac
   local test_status=$?
@@ -314,7 +314,7 @@ main () {
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface" 1280)"
+    describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface" 1500)"
     tag_test_status $?
     echo "$describe"
 
@@ -322,7 +322,7 @@ main () {
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv6 "$GOOGLE_PUBLIC_DNS_V6" "$interface" 1280)"
+    describe="$(test_ping_ipv6 "$GOOGLE_PUBLIC_DNS_V6" "$interface" 1500)"
     tag_test_status $?
     echo "$describe"
   fi
