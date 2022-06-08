@@ -1,22 +1,27 @@
 # dropcheck
 
-For Interop Tokyo 2018
+For Interop Tokyo 2022
 
 
 ## Requirements
 
-- macOS
-- iproute2mac
+- Ubuntu 22.04
 - wget
-- screen
 - mtr
 
+## :warning: Caveats :warning:
+Configure DNS addresses 
+
+```sh
+DNS_V4=$GOOGLE_PUBLIC_DNS_V4
+DNS_V6=$GOOGLE_PUBLIC_DNS_V6
+```
 
 ## Usage
 
 ```sh
 # Download this script and make executable
-curl -Lo dropcheck https://raw.githubusercontent.com/y-sira/dropcheck/master/dropcheck
+wget https://raw.githubusercontent.com/naoki9911/dropcheck/master/dropcheck
 chmod +x dropcheck
 
 # Check the target interface (e.g. en0)

@@ -10,8 +10,15 @@ IPV6_ADDR_RE='^([0-9a-fA-F:]+:+)+[0-9a-fA-F]+$'
 ICMP_INTERVAL=0.1
 ICMP_COUNT=3
 
+PING_ENDPOINT_V4='1.1.1.1'
+PING_ENDPOINT_V6='2606:4700:4700::1111'
+
 GOOGLE_PUBLIC_DNS_V4='8.8.8.8'
 GOOGLE_PUBLIC_DNS_V6='2001:4860:4860::8888'
+
+# configure this
+DNS_V4=$GOOGLE_PUBLIC_DNS_V4
+DNS_V6=$GOOGLE_PUBLIC_DNS_V6
 
 WIDE_DOMAIN='www.wide.ad.jp'
 
@@ -115,7 +122,7 @@ printb() {
 
 test_ipv4_addr_and_gw_addr() {
   (($# != 1)) && return 1
-  local $interface="$1"
+  local interface="$1"
   local test_status=0
   local ipv4_cidr
   ipv4_cidr="$(get_ipv4_cidr "$interface")"
@@ -133,7 +140,7 @@ test_ipv4_addr_and_gw_addr() {
 
 test_ipv6_addr_and_gw_addr () {
   (($# != 1)) && return 1
-  local $interface="$1"
+  local interface="$1"
   local test_status=0
   local ipv6_cidr
   ipv6_cidr="$(get_ipv6_cidr "$interface")"
@@ -210,12 +217,18 @@ test_dns_a () {
   (($# != 1)) && return 1
   local domain="$1"
   local result
-  result="$(dig +short "$domain" A | grep -v -e '^$')"
-  local test_status=$?
+  local test_status
+  result="$(dig +short "$domain" A @$DNS_V4)"
+  test_status=$?
+  if (($test_status == 0)); then
+    result="$(echo $result | grep -v -e '^$')"
+    test_status=$?
+  fi
+
   if (($test_status != 0)); then
-    echo "dig $domain A"
+    echo "dig $domain @$DNS_V4 A"
   else
-    echo "$domain IN A $result"
+    echo "$domain @$DNS_V4 IN A $result"
   fi
   return $test_status
 }
@@ -224,12 +237,18 @@ test_dns_aaaa () {
   (($# != 1)) && return 1
   local domain="$1"
   local result
-  result="$(dig +short "$domain" AAAA | grep -v -e '^$')"
-  local test_status=$?
+  local test_status
+  result="$(dig +short "$domain" AAAA @$DNS_V6)"
+  test_status=$?
+  if (($test_status == 0)); then
+    result="$(echo $result | grep -v -e '^$')"
+    test_status=$?
+  fi
+
   if (($test_status != 0)); then
-    echo "dig $domain AAAA"
+    echo "dig $domain @$DNS_V6 AAAA"
   else
-    echo "$domain IN AAAA $result"
+    echo "$domain @$DNS_V6 IN AAAA $result"
   fi
   return $test_status
 }
@@ -299,11 +318,11 @@ main () {
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv4 "$GOOGLE_PUBLIC_DNS_V4" "$interface")"
+    describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface")"
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv4 "$GOOGLE_PUBLIC_DNS_V4" "$interface" 1500)"
+    describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface" 1500)"
     tag_test_status $?
     echo "$describe"
   fi
@@ -318,11 +337,15 @@ main () {
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv6 "$GOOGLE_PUBLIC_DNS_V6" "$interface")"
+    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface")"
     tag_test_status $?
     echo "$describe"
 
-    describe="$(test_ping_ipv6 "$GOOGLE_PUBLIC_DNS_V6" "$interface" 1500)"
+    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1280)"
+    tag_test_status $?
+    echo "$describe"
+
+    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1500)"
     tag_test_status $?
     echo "$describe"
   fi
