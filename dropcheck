@@ -254,16 +254,18 @@ test_dns () {
 	return $test_status
 }
 
+# $1: url
+# $2: protocol(-4 or -6)
 test_http_get () {
-	(($# != 1)) && return 1
+	(($# != 1 && $# != 2)) && return 1
 	local url="$1"
 	local result
-	result="$(wget -p -T 3 -O .dropcheck "$url" 2>&1 | grep '200 OK')"
+	result="$(wget $2 -p -T 3 -O .dropcheck "$url" 2>&1 | grep '200 OK')"
 	local test_status=$?
 	if (($test_status != 0)); then
-		echo "GET $url"
+		echo "GET $2 $url"
 	else
-		echo "GET $url: $(echo "$result" | tail -n 1 | awk '{print $(NF-1),$NF}')"
+		echo "GET $2 $url : $(echo "$result" | tail -n 1 | awk '{print $(NF-1),$NF}')"
 	fi
 	return $test_status
 }
@@ -401,7 +403,11 @@ main () {
   tag_test_status $?
   echo "$describe"
 
-  describe="$(test_http_get "$EICAR")"
+  describe="$(test_http_get "$EICAR" -4)"
+  tag_test_status $?
+  echo "$describe"
+
+  describe="$(test_http_get "$EICAR" -6)"
   tag_test_status $?
   echo "$describe"
 
