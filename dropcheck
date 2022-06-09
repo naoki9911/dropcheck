@@ -23,7 +23,7 @@ WIDE_DOMAIN='www.wide.ad.jp'
 
 GOOGLE_IPV4='https://ipv4.google.com/'
 GOOGLE_IPV6='https://ipv6.google.com/'
-EICAR='https://secure.eicar.org/eicar.com.txt'
+EICAR='http://www.eicar.org/download/eicar_com.zip'
 
 TRACEROUTE_INTERVAL=0.1
 TRACEROUTE_COUNT=100
