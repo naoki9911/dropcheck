@@ -29,250 +29,269 @@ TRACEROUTE_INTERVAL=0.1
 TRACEROUTE_COUNT=100
 
 
+get_interface_link_speed() {
+	(($# != 1)) && return 1
+	local interface=$1
+	local ethtool_res="$(ethtool $interface 2> /dev/null | grep Speed)"
+	echo "$ethtool_res"
+	return 0
+}
+
 get_ipv4_cidr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local cidr="$(ip -4 addr show "$interface" 2> /dev/null | grep -m 1 inet | awk '{print $2}')"
-  echo "$cidr" | grep -E "$IPV4_CIDR_RE" &> /dev/null || return 1
-  echo "$cidr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local cidr="$(ip -4 addr show "$interface" 2> /dev/null | grep -m 1 inet | awk '{print $2}')"
+	echo "$cidr" | grep -E "$IPV4_CIDR_RE" &> /dev/null || return 1
+	echo "$cidr"
+	return 0
 }
 
 get_ipv4_addr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local cidr
-  cidr="$(get_ipv4_cidr "$interface")" || return 1
-  local addr="$(echo "$cidr" | cut -d / -f 1)"
-  echo "$addr" | grep -E "$IPV4_ADDR_RE" &> /dev/null || return 1
-  echo "$addr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local cidr
+	cidr="$(get_ipv4_cidr "$interface")" || return 1
+	local addr="$(echo "$cidr" | cut -d / -f 1)"
+	echo "$addr" | grep -E "$IPV4_ADDR_RE" &> /dev/null || return 1
+	echo "$addr"
+	return 0
 }
 
 get_ipv4_gw_addr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local gw_addr="$(ip -4 route | grep -m 1 "default.*$interface" | awk '{print $3}')"
-  echo "$gw_addr" | grep -E "$IPV4_ADDR_RE" &> /dev/null || return 1
-  echo "$gw_addr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local gw_addr="$(ip -4 route | grep -m 1 "default.*$interface" | awk '{print $3}')"
+	echo "$gw_addr" | grep -E "$IPV4_ADDR_RE" &> /dev/null || return 1
+	echo "$gw_addr"
+	return 0
 }
 
 get_ipv6_cidr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local cidr="$(ip -6 addr show "$interface" 2> /dev/null | grep inet6 | grep -m 1 -v fe80 | awk '{print $2}')"
-  echo "$cidr" | grep -E "$IPV6_CIDR_RE" &> /dev/null || return 1
-  echo "$cidr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local cidr="$(ip -6 addr show "$interface" 2> /dev/null | grep inet6 | grep -m 1 -v fe80 | awk '{print $2}')"
+	echo "$cidr" | grep -E "$IPV6_CIDR_RE" &> /dev/null || return 1
+	echo "$cidr"
+	return 0
 }
 
 get_ipv6_addr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local cidr
-  cidr="$(get_ipv6_cidr "$interface")" || return 1
-  local addr="$(echo "$cidr" | cut -d / -f 1)"
-  echo "$addr" | grep -E "$IPV6_ADDR_RE" &> /dev/null || return 1
-  echo "$addr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local cidr
+	cidr="$(get_ipv6_cidr "$interface")" || return 1
+	local addr="$(echo "$cidr" | cut -d / -f 1)"
+	echo "$addr" | grep -E "$IPV6_ADDR_RE" &> /dev/null || return 1
+	echo "$addr"
+	return 0
 }
 
 get_ipv6_gw_addr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local gw_addr="$(ip -6 route | grep -m 1 "nexthop" | awk '{print $3}' | cut -d % -f 1)"
-  if [ -z "$gw_addr" ]; then
-    gw_addr="$(ip -6 route | grep -m 1 "default.*$interface" | awk '{print $3}' | cut -d % -f 1)"
-  fi
-  echo "$gw_addr" | grep -E "$IPV6_ADDR_RE" &> /dev/null || return 1
-  echo "$gw_addr"
-  return 0
+	(($# != 1)) && return 1
+	local interface="$1"
+	local gw_addr="$(ip -6 route | grep -m 1 "nexthop" | awk '{print $3}' | cut -d % -f 1)"
+	if [ -z "$gw_addr" ]; then
+		gw_addr="$(ip -6 route | grep -m 1 "default.*$interface" | awk '{print $3}' | cut -d % -f 1)"
+	fi
+	echo "$gw_addr" | grep -E "$IPV6_ADDR_RE" &> /dev/null || return 1
+	echo "$gw_addr"
+	return 0
 }
 
 tag_fail() {
-  printf "[\e[31;1mFAIL\e[m] "
-  return 0
+	printf "[\e[31;1mFAIL\e[m] "
+	return 0
 }
 
 tag_pass() {
-  printf "[\e[32;1mPASS\e[m] "
-  return 0
+	printf "[\e[32;1mPASS\e[m] "
+	return 0
 }
 
 tag_skip() {
-  printf "[\e[33;1mSKIP\e[m] "
-  return 0
+	printf "[\e[33;1mSKIP\e[m] "
+	return 0
 }
 
 tag_info() {
-  printf "[\e[37;1mINFO\e[m] "
+	printf "[\e[37;1mINFO\e[m] "
 }
 
 tag_test_status() {
-  (($# != 1)) && return 1
-  local test_status=$1
-  (($test_status == 0)) && tag_pass || tag_fail
-  return 0
+	(($# != 1)) && return 1
+	local test_status=$1
+	(($test_status == 0)) && tag_pass || tag_fail
+	return 0
 }
 
 printb() {
-  (($# != 1)) && return 1
-  local text="$1"
-  printf "\e[1m${text}\e[m\n"
-  return 0
+	(($# != 1)) && return 1
+	local text="$1"
+	printf "\e[1m${text}\e[m\n"
+	return 0
 }
 
 test_ipv4_addr_and_gw_addr() {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local test_status=0
-  local ipv4_cidr
-  ipv4_cidr="$(get_ipv4_cidr "$interface")"
-  test_status=$(($test_status || $?))
-  local ipv4_gw_addr
-  ipv4_gw_addr="$(get_ipv4_gw_addr "$interface")"
-  test_status=$(($test_status || $?))
-  if (($test_status != 0)); then
-    echo 'Unable to retrieve IPv4 address'
-  else
-    echo "IPv4 address: $ipv4_cidr (default gateway: $ipv4_gw_addr)"
-  fi
-  return $test_status
+	(($# != 1)) && return 1
+	local interface="$1"
+	local test_status=0
+	local ipv4_cidr
+	ipv4_cidr="$(get_ipv4_cidr "$interface")"
+	test_status=$(($test_status || $?))
+	local ipv4_gw_addr
+	ipv4_gw_addr="$(get_ipv4_gw_addr "$interface")"
+	test_status=$(($test_status || $?))
+	if (($test_status != 0)); then
+		echo 'Unable to retrieve IPv4 address'
+	else
+		echo "IPv4 address: $ipv4_cidr (default gateway: $ipv4_gw_addr)"
+	fi
+	return $test_status
 }
 
 test_ipv6_addr_and_gw_addr () {
-  (($# != 1)) && return 1
-  local interface="$1"
-  local test_status=0
-  local ipv6_cidr
-  ipv6_cidr="$(get_ipv6_cidr "$interface")"
-  test_status=$(($test_status || $?))
-  local ipv6_gw_addr
-  ipv6_gw_addr="$(get_ipv6_gw_addr "$interface")"
-  test_status=$(($test_status || $?))
-  if (($test_status != 0)); then
-    echo 'Unable to retrieve IPv6 address'
-  else
-    echo "IPv6 address: $ipv6_cidr (default gateway: $ipv6_gw_addr)"
-  fi
-  return $test_status
+	(($# != 1)) && return 1
+	local interface="$1"
+	local test_status=0
+	local ipv6_cidr
+	ipv6_cidr="$(get_ipv6_cidr "$interface")"
+	test_status=$(($test_status || $?))
+	local ipv6_gw_addr
+	ipv6_gw_addr="$(get_ipv6_gw_addr "$interface")"
+	test_status=$(($test_status || $?))
+	if (($test_status != 0)); then
+		echo 'Unable to retrieve IPv6 address'
+	else
+		echo "IPv6 address: $ipv6_cidr (default gateway: $ipv6_gw_addr)"
+	fi
+	return $test_status
 }
 
 test_ping_ipv4 () {
-  (($# != 2)) && (($# != 3)) && return 1
-  local host="$1"
-  local interface="$2"
-  if (($# == 3)); then
-    local framesize=$3
-    local datasize=$(($framesize - 28))
-  fi
-  local source_addr="$(get_ipv4_addr "$interface")"
-  local result
-  case $# in
-    2 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
-    3 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
-    * ) return 1;;
-  esac
-  local test_status=$?
-  case $# in
-    2 ) echo -n "ping $host: ";;
-    3 ) echo -n "ping $host ($framesize bytes): ";;
-    * ) return 1;;
-  esac
-  if (($test_status != 0)); then
-    echo "$result" | tail -n 1
-  else
-    echo "$result" | tail -n 2 | head -n 1
-  fi
-  return $test_status
+	(($# != 2)) && (($# != 3)) && return 1
+	local host="$1"
+	local interface="$2"
+	if (($# == 3)); then
+		local framesize=$3
+		local datasize=$(($framesize - 28))
+	fi
+	local source_addr="$(get_ipv4_addr "$interface")"
+	local result
+	case $# in
+		2 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
+		3 ) result="$(ping -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
+		* ) return 1;;
+	esac
+	local test_status=$?
+	case $# in
+		2 ) echo -n "ping $host: ";;
+		3 ) echo -n "ping $host ($framesize bytes): ";;
+		* ) return 1;;
+	esac
+	if (($test_status != 0)); then
+		echo "$result" | tail -n 1
+	else
+		echo "$result" | tail -n 2 | head -n 1
+	fi
+	return $test_status
 }
 
 test_ping_ipv6 () {
-  (($# != 2)) && (($# != 3)) && return 1
-  local host="$1"
-  local interface="$2"
-  if (($# == 3)); then
-    local framesize=$3
-    local datasize=$(($framesize - 48))
-  fi
-  local result
-  case $# in
-    2 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
-    3 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
-    * ) return 1;;
-  esac
-  local test_status=$?
-  case $# in
-    2 ) echo -n "ping $host: ";;
-    3 ) echo -n "ping $host ($framesize bytes): ";;
-    * ) return 1;;
-  esac
-  if (($test_status != 0)); then
-    echo "$result" | tail -n 1
-  else
-    echo "$result" | tail -n 2 | head -n 1
-  fi
-  return $test_status
+	(($# != 2)) && (($# != 3)) && return 1
+	local host="$1"
+	local interface="$2"
+	if (($# == 3)); then
+		local framesize=$3
+		local datasize=$(($framesize - 48))
+	fi
+	local result
+	case $# in
+		2 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" "$host" 2> /dev/null)";;
+		3 ) result="$(ping6 -Mdo -c "$ICMP_COUNT" -i "$ICMP_INTERVAL" -I "$interface" -s "$datasize" "$host" 2> /dev/null)";;
+		* ) return 1;;
+	esac
+	local test_status=$?
+	case $# in
+		2 ) echo -n "ping $host: ";;
+		3 ) echo -n "ping $host ($framesize bytes): ";;
+		* ) return 1;;
+	esac
+	if (($test_status != 0)); then
+		echo "$result" | tail -n 1
+	else
+		echo "$result" | tail -n 2 | head -n 1
+	fi
+	return $test_status
 }
 
 # $1: domain
 # $2: Record
 # $3: DNS Server
 test_dns () {
-  (($# != 3 && $# != 2)) && return 1
-  local domain="$1"
-  local record="$2"
-  local dns_server="$3"
-  local result
-  local test_status
+	(($# != 3 && $# != 2)) && return 1
+	local domain="$1"
+	local record="$2"
+	local dns_server="$3"
+	local result
+	local test_status
 
-  if (($# == 3)); then
-    result="$(dig +short "$domain" $record @$dns_server)"
-  else
-    result="$(dig +short "$domain" $record)"
-  fi
-  test_status=$?
-  if (($test_status == 0)); then
-    result="$(echo $result | grep -v -e '^$')"
-    test_status=$?
-  fi
+	if (($# == 3)); then
+		result="$(dig +short "$domain" $record @$dns_server)"
+	else
+		result="$(dig +short "$domain" $record)"
+	fi
+	test_status=$?
+	if (($test_status == 0)); then
+		result="$(echo $result | grep -v -e '^$')"
+		test_status=$?
+	fi
 
-  if (($test_status != 0)); then
-    echo "dig $domain @$dns_server $record"
-  else
-    echo "$domain @$dns_server IN $record $result"
-  fi
-  return $test_status
+	if (($test_status != 0)); then
+		echo "dig $domain @$dns_server $record"
+	else
+		echo "$domain @$dns_server IN $record $result"
+	fi
+	return $test_status
 }
 
 test_http_get () {
-  (($# != 1)) && return 1
-  local url="$1"
-  local result
-  result="$(wget -p -T 3 -O .dropcheck "$url" 2>&1 | grep '200 OK')"
-  local test_status=$?
-  if (($test_status != 0)); then
-    echo "GET $url"
-  else
-    echo "GET $url: $(echo "$result" | tail -n 1 | awk '{print $(NF-1),$NF}')"
-  fi
-  return $test_status
+	(($# != 1)) && return 1
+	local url="$1"
+	local result
+	result="$(wget -p -T 3 -O .dropcheck "$url" 2>&1 | grep '200 OK')"
+	local test_status=$?
+	if (($test_status != 0)); then
+		echo "GET $url"
+	else
+		echo "GET $url: $(echo "$result" | tail -n 1 | awk '{print $(NF-1),$NF}')"
+	fi
+	return $test_status
 }
 
 main () {
-  if (($# != 1 )); then
-    echo "Usage: $0 interface" >&2
-    exit 1
-  fi
+	if (($# != 1 )); then
+		echo "Usage: $0 interface" >&2
+		exit 1
+	fi
 
-  if (($EUID != 0)); then
-    echo 'Please run as root'
-    exit 1
-  fi
+	if (($EUID != 0)); then
+		echo 'Please run as root'
+		exit 1
+	fi
 
-  local interface="$1"
-  local describe
+	local interface="$1"
+	local describe
+
+  #================================
+  # STEP 0.
+  #================================
+  printb 'STEP 0. Show interface status'
+  describe="$(get_interface_link_speed "$interface")"
+  local link_status=$?
+  tag_test_status $link_status
+  echo "$describe"
+
+  echo
 
   #================================
   # STEP 1.
@@ -290,9 +309,9 @@ main () {
   echo "$describe"
 
   if (($test_status_ipv4 != 0)) && (($test_status_ipv6 != 0)); then
-    printb "\nUnable to retrieve IP address(es)."
-    printb "Check the DHCP server or set IP address(es) by your self.\n"
-    exit 1
+	  printb "\nUnable to retrieve IP address(es)."
+	  printb "Check the DHCP server or set IP address(es) by your self.\n"
+	  exit 1
   fi
   echo
 
@@ -302,45 +321,45 @@ main () {
   printb 'STEP 2. Ping'
 
   if (($test_status_ipv4 == 0)); then
-    local ipv4_gw_addr="$(get_ipv4_gw_addr "$interface")"
-    describe="$(test_ping_ipv4 "$ipv4_gw_addr" "$interface")"
-    tag_test_status $?
-    echo "$describe"
+	  local ipv4_gw_addr="$(get_ipv4_gw_addr "$interface")"
+	  describe="$(test_ping_ipv4 "$ipv4_gw_addr" "$interface")"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv4 "$ipv4_gw_addr" "$interface" 1500)"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv4 "$ipv4_gw_addr" "$interface" 1500)"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface")"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface")"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface" 1500)"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv4 "$PING_ENDPOINT_V4" "$interface" 1500)"
+	  tag_test_status $?
+	  echo "$describe"
   fi
 
   if (($test_status_ipv6 == 0)); then
-    local ipv6_gw_addr="$(get_ipv6_gw_addr "$interface")"
-    describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface")"
-    tag_test_status $?
-    echo "$describe"
+	  local ipv6_gw_addr="$(get_ipv6_gw_addr "$interface")"
+	  describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface")"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface" 1500)"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv6 "$ipv6_gw_addr" "$interface" 1500)"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface")"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface")"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1280)"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1280)"
+	  tag_test_status $?
+	  echo "$describe"
 
-    describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1500)"
-    tag_test_status $?
-    echo "$describe"
+	  describe="$(test_ping_ipv6 "$PING_ENDPOINT_V6" "$interface" 1500)"
+	  tag_test_status $?
+	  echo "$describe"
   fi
 
   echo
@@ -394,16 +413,16 @@ main () {
   printb 'STEP 4. Check service chainning'
 
   if (($test_status_ipv4 == 0)); then
-    tag_info
-    echo 'mtr (IPv4)'
-    mtr -4 -n -r -c $TRACEROUTE_COUNT -i $TRACEROUTE_INTERVAL $GOOGLE_PUBLIC_DNS_V4
-    echo
+	  tag_info
+	  echo 'mtr (IPv4)'
+	  mtr -4 -n -r -c $TRACEROUTE_COUNT -i $TRACEROUTE_INTERVAL $GOOGLE_PUBLIC_DNS_V4
+	  echo
   fi
   if (($test_status_ipv6 == 0)); then
-    tag_info
-    echo 'mtr (IPv6)'
-    mtr -6 -n -r -c $TRACEROUTE_COUNT -i $TRACEROUTE_INTERVAL $GOOGLE_PUBLIC_DNS_V6
-    echo
+	  tag_info
+	  echo 'mtr (IPv6)'
+	  mtr -6 -n -r -c $TRACEROUTE_COUNT -i $TRACEROUTE_INTERVAL $GOOGLE_PUBLIC_DNS_V6
+	  echo
   fi
 
   #================================
