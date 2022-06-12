@@ -37,6 +37,15 @@ get_interface_link_speed() {
 	return 0
 }
 
+# $1: protocol(-4 or -6)
+get_routing_table() {
+	(($# != 1)) && return 1
+	local protocol=$1
+	local rt="$(ip $protocol route show)"
+	echo $rt
+	return 0
+}
+
 get_ipv4_cidr() {
 	(($# != 1)) && return 1
 	local interface="$1"
@@ -287,10 +296,21 @@ main () {
   #================================
   # STEP 0.
   #================================
-  printb 'STEP 0. Show interface status'
+  printb 'STEP 0. Show interface status and routing table'
+
   describe="$(get_interface_link_speed "$interface")"
   local link_status=$?
   tag_test_status $link_status
+  echo "$describe"
+
+  describe="$(get_routing_table "-4")"
+  local rt_v4=$?
+  tag_test_status $rt_v4
+  echo "$describe"
+
+  describe="$(get_routing_table "-6")"
+  local rt_v6=$?
+  tag_test_status $rt_v6
   echo "$describe"
 
   echo
